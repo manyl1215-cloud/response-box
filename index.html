@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>網友回應框產生器 - 多頁版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&family=Noto+Serif+TC:wght@700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .preview-container {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #4b5563;
+            margin-bottom: 0.25rem;
+        }
+        input[type="range"] {
+            accent-color: #2563eb;
+        }
+        .plat-btn.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            box-shadow: 0 0 0 2px #3b82f6;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+    <div class="max-w-7xl mx-auto flex flex-col gap-4">
+        
+        <!-- 最上方 SLUG 設定 -->
+        <div class="bg-white p-4 rounded-xl shadow-md border-l-4 border-blue-500 flex flex-col md:flex-row items-center gap-4">
+            <div class="flex-1 w-full">
+                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">專案名稱 (SLUG)</label>
+                <input type="text" id="slugInput" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如：白沙媽起駕">
+            </div>
+            <div class="flex items-center gap-2 bg-gray-100 p-2 rounded-lg">
+                <button onclick="prevPage()" class="p-2 hover:bg-white rounded transition-colors" title="上一頁">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span id="pageIndicator" class="text-sm font-bold px-4">第 1 / 1 頁</span>
+                <button onclick="nextPage()" class="p-2 hover:bg-white rounded transition-colors" title="下一頁">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </button>
+                <div class="h-6 w-[1px] bg-gray-300 mx-2"></div>
+                <button onclick="addPage()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors flex items-center gap-1">
+                    <span>+</span> 新增頁面
+                </button>
+                <button onclick="deleteCurrentPage()" class="text-red-500 hover:bg-red-50 p-2 rounded transition-colors" title="刪除本頁">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+            <!-- 左側控制面板 -->
+            <div class="w-full md:w-1/3 p-6 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 overflow-y-auto max-h-[80vh]">
+                
+                <!-- 1. 文字與字體 -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">1. 內容與字體設定</label>
+                    <textarea id="inputText" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none mb-3" placeholder="在此輸入想要呈現的文字..."></textarea>
+                    
+                    <div class="mb-3">
+                        <label class="control-label">字型選擇</label>
+                        <select id="fontFamily" class="w-full p-2 border border-gray-300 rounded bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="'Noto Sans TC', sans-serif">思源黑體 (Noto Sans TC)</option>
+                            <option value="'Noto Serif TC', serif">思源明體 (Noto Serif TC)</option>
+                            <option value="sans-serif">系統黑體 (Sans-serif)</option>
+                            <option value="serif">系統明體 (Serif)</option>
+                            <option value="cursive">手寫風格 (Cursive)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-label">
+                        <span>文字大小</span>
+                        <span id="textSizeVal">68px</span>
+                    </div>
+                    <input type="range" id="textSize" min="20" max="150" value="68" class="w-full mb-4">
+                </div>
+
+                <!-- 2. 框尺寸與陰影 -->
+                <div class="mb-6 border-t pt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">2. 訊息框樣式</label>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="control-label"><span>框寬度</span><span id="boxWidthVal">900</span></div>
+                            <input type="range" id="boxWidth" min="400" max="1000" value="900" class="w-full">
+                        </div>
+                        <div>
+                            <div class="control-label"><span>框高度</span><span id="boxHeightVal">380</span></div>
+                            <input type="range" id="boxHeight" min="100" max="550" value="380" class="w-full">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="hasShadow" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                            <label for="hasShadow" class="text-sm font-medium text-gray-700">啟用外陰影</label>
+                        </div>
+                        <div id="shadowControls" class="opacity-50 pointer-events-none transition-opacity">
+                            <div class="control-label"><span>陰影強度 (Blur)</span><span id="shadowBlurVal">15</span></div>
+                            <input type="range" id="shadowBlur" min="0" max="50" value="15" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 來源平台 -->
+                <div class="mb-6 border-t pt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">3. 來源平台</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="setPlatform('facebook')" id="plat-facebook" class="plat-btn p-2 border-2 rounded-lg bg-white flex items-center justify-center gap-2 text-xs transition-all">Facebook</button>
+                        <button onclick="setPlatform('instagram')" id="plat-instagram" class="plat-btn p-2 border-2 rounded-lg bg-white flex items-center justify-center gap-2 text-xs transition-all border-transparent">Instagram</button>
+                        <button onclick="setPlatform('threads')" id="plat-threads" class="plat-btn p-2 border-2 rounded-lg bg-white flex items-center justify-center gap-2 text-xs transition-all border-transparent">Threads</button>
+                        <button onclick="setPlatform('tiktok')" id="plat-tiktok" class="plat-btn p-2 border-2 rounded-lg bg-white flex items-center justify-center gap-2 text-xs transition-all border-transparent">TikTok</button>
+                    </div>
+                </div>
+
+                <!-- 4. 頭像選擇與調整 -->
+                <div class="mb-6 border-t pt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">4. 頭像來源與設定</label>
+                    <div class="p-4 bg-white border border-gray-200 rounded-lg">
+                        <p class="text-[10px] text-gray-500 mb-2">選擇預設風格：</p>
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <button onclick="setAvatarType('man')" id="av-man" class="av-btn p-2 border rounded hover:bg-gray-50 text-xs">男生</button>
+                            <button onclick="setAvatarType('woman')" id="av-woman" class="av-btn p-2 border rounded hover:bg-gray-50 text-xs">女生</button>
+                            <button onclick="setAvatarType('child')" id="av-child" class="av-btn p-2 border rounded hover:bg-gray-50 text-xs">小孩</button>
+                            <button onclick="setAvatarType('senior')" id="av-senior" class="av-btn p-2 border rounded hover:bg-gray-50 text-xs">老人</button>
+                        </div>
+                        
+                        <div class="border-t pt-3">
+                            <p class="text-[10px] text-gray-500 mb-2">或是上傳自訂檔案：</p>
+                            <input type="file" id="avatarUpload" accept="image/*" class="w-full text-xs mb-4">
+                        </div>
+
+                        <div id="avatarControls" class="space-y-3 opacity-50 pointer-events-none border-t pt-3">
+                            <div class="control-label"><span>頭像縮放</span><span id="scaleVal">1.0x</span></div>
+                            <input type="range" id="avatarScale" min="0.1" max="3" step="0.01" value="1" class="w-full">
+                            <div class="control-label"><span>水平位移</span><span id="offsetXVal">0</span></div>
+                            <input type="range" id="avatarOffsetX" min="-200" max="200" value="0" class="w-full">
+                            <div class="control-label"><span>垂直位移</span><span id="offsetYVal">0</span></div>
+                            <input type="range" id="avatarOffsetY" min="-200" max="200" value="0" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. 背景顏色 -->
+                <div class="mb-6 border-t pt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">5. 背景色與透明度</label>
+                    <div class="flex items-center gap-4 mb-2">
+                        <input type="color" id="bgColor" value="#2ecc71" class="w-12 h-10 p-1 rounded cursor-pointer">
+                        <input type="range" id="bgOpacity" min="0" max="100" value="100" class="flex-1">
+                    </div>
+                </div>
+
+                <button onclick="downloadImage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    下載 PNG 圖片
+                </button>
+            </div>
+
+            <!-- 右側預覽 -->
+            <div class="w-full md:w-2/3 p-6 flex flex-col items-center justify-center bg-gray-200 min-h-[500px]">
+                <div class="preview-container">
+                    <canvas id="mainCanvas" width="1200" height="630"></canvas>
+                </div>
+                <p id="footerFilename" class="mt-4 text-[10px] text-gray-400 font-mono italic">filename: slug_1.png</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 狀態管理
+        let pages = [];
+        let currentPageIndex = 0;
+
+        const createDefaultPage = (text = "") => ({
+            text: text || "",
+            textSize: 68,
+            fontFamily: "'Noto Sans TC', sans-serif",
+            boxWidth: 900,
+            boxHeight: 380,
+            hasShadow: false,
+            shadowBlur: 15,
+            selectedPlatform: 'facebook',
+            avatarMode: 'default', // 'default' or 'custom'
+            defaultAvatarType: 'man', // 'man', 'woman', 'child', 'senior'
+            customAvatarImg: null,
+            avatarScale: 1,
+            avatarOffsetX: 0,
+            avatarOffsetY: 0,
+            bgColor: '#2ecc71',
+            bgOpacity: 100
+        });
+
+        // UI 綁定
+        const ui = {
+            slug: document.getElementById('slugInput'),
+            text: document.getElementById('inputText'),
+            textSize: document.getElementById('textSize'),
+            fontFamily: document.getElementById('fontFamily'),
+            boxWidth: document.getElementById('boxWidth'),
+            boxHeight: document.getElementById('boxHeight'),
+            hasShadow: document.getElementById('hasShadow'),
+            shadowBlur: document.getElementById('shadowBlur'),
+            bgColor: document.getElementById('bgColor'),
+            bgOpacity: document.getElementById('bgOpacity'),
+            avatarScale: document.getElementById('avatarScale'),
+            avatarOffsetX: document.getElementById('avatarOffsetX'),
+            avatarOffsetY: document.getElementById('avatarOffsetY'),
+            avatarUpload: document.getElementById('avatarUpload'),
+            indicator: document.getElementById('pageIndicator'),
+            filenameHint: document.getElementById('footerFilename')
+        };
+
+        function updateUILabel() {
+            document.getElementById('textSizeVal').innerText = ui.textSize.value + 'px';
+            document.getElementById('boxWidthVal').innerText = ui.boxWidth.value;
+            document.getElementById('boxHeightVal').innerText = ui.boxHeight.value;
+            document.getElementById('shadowBlurVal').innerText = ui.shadowBlur.value;
+            document.getElementById('scaleVal').innerText = parseFloat(ui.avatarScale.value).toFixed(2) + 'x';
+            document.getElementById('offsetXVal').innerText = ui.avatarOffsetX.value;
+            document.getElementById('offsetYVal').innerText = ui.avatarOffsetY.value;
+            ui.indicator.innerText = `第 ${currentPageIndex + 1} / ${pages.length} 頁`;
+            const currentSlug = ui.slug.value || "未命名";
+            ui.filenameHint.innerText = `即將儲存為: ${currentSlug}_${currentPageIndex + 1}.png`;
+            
+            // 陰影控制項狀態
+            const shadowControls = document.getElementById('shadowControls');
+            if (ui.hasShadow.checked) {
+                shadowControls.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                shadowControls.classList.add('opacity-50', 'pointer-events-none');
+            }
+
+            // 更新按鈕高亮
+            const p = pages[currentPageIndex];
+            document.querySelectorAll('.av-btn').forEach(b => b.className = 'av-btn p-2 border rounded hover:bg-gray-50 text-xs');
+            if (p.avatarMode === 'default') {
+                const btn = document.getElementById('av-' + p.defaultAvatarType);
+                if (btn) btn.className = 'av-btn p-2 border-2 border-blue-500 bg-blue-50 rounded text-xs font-bold';
+            }
+        }
+
+        function saveCurrentPage() {
+            const p = pages[currentPageIndex];
+            p.text = ui.text.value;
+            p.textSize = parseInt(ui.textSize.value);
+            p.fontFamily = ui.fontFamily.value;
+            p.boxWidth = parseInt(ui.boxWidth.value);
+            p.boxHeight = parseInt(ui.boxHeight.value);
+            p.hasShadow = ui.hasShadow.checked;
+            p.shadowBlur = parseInt(ui.shadowBlur.value);
+            p.bgColor = ui.bgColor.value;
+            p.bgOpacity = parseInt(ui.bgOpacity.value);
+            p.avatarScale = parseFloat(ui.avatarScale.value);
+            p.avatarOffsetX = parseInt(ui.avatarOffsetX.value);
+            p.avatarOffsetY = parseInt(ui.avatarOffsetY.value);
+        }
+
+        function loadCurrentPage() {
+            const p = pages[currentPageIndex];
+            ui.text.value = p.text;
+            ui.textSize.value = p.textSize;
+            ui.fontFamily.value = p.fontFamily;
+            ui.boxWidth.value = p.boxWidth;
+            ui.boxHeight.value = p.boxHeight;
+            ui.hasShadow.checked = p.hasShadow;
+            ui.shadowBlur.value = p.shadowBlur;
+            ui.bgColor.value = p.bgColor;
+            ui.bgOpacity.value = p.bgOpacity;
+            ui.avatarScale.value = p.avatarScale;
+            ui.avatarOffsetX.value = p.avatarOffsetX;
+            ui.avatarOffsetY.value = p.avatarOffsetY;
+            
+            setPlatform(p.selectedPlatform, false);
+            
+            const avatarControls = document.getElementById('avatarControls');
+            if (p.avatarMode === 'custom') {
+                avatarControls.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                avatarControls.classList.add('opacity-50', 'pointer-events-none');
+            }
+            
+            updateUILabel();
+            draw();
+        }
+
+        function hexToRgba(hex, opacity) {
+            let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`;
+        }
+
+        // 繪製頭像主邏輯
+        function drawAvatar(x, y, r, type) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(-r, -r, r * 2, r * 2);
+
+            // 衣服
+            ctx.fillStyle = '#4b6584';
+            ctx.beginPath(); 
+            ctx.ellipse(0, r + 40, r * 1.3, r, 0, 0, Math.PI * 2); 
+            ctx.fill();
+
+            // 臉部
+            ctx.fillStyle = '#f7d1b6';
+            ctx.beginPath(); 
+            ctx.arc(0, 20, r * 0.58, 0, Math.PI * 2); 
+            ctx.fill();
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 2.5; ctx.stroke();
+            
+            ctx.fillStyle = (type === 'senior') ? '#d1d5db' : (type === 'child' ? '#5d4037' : '#3d3d3d');
+            
+            if (type === 'man') {
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.6, 10); 
+                ctx.quadraticCurveTo(-r * 0.75, -r * 0.45, 0, -r * 0.5); 
+                ctx.quadraticCurveTo(r * 0.75, -r * 0.45, r * 0.6, 10); 
+                ctx.lineTo(r * 0.3, -10); ctx.lineTo(r * 0.1, 5); ctx.lineTo(-r * 0.1, -15); ctx.lineTo(-r * 0.3, 5);
+                ctx.closePath(); ctx.fill();
+            } else if (type === 'woman') {
+                ctx.beginPath();
+                ctx.arc(0, 10, r * 0.65, Math.PI, 0); ctx.fill();
+                ctx.fillRect(-r * 0.65, 10, r * 0.3, r * 0.6); 
+                ctx.fillRect(r * 0.35, 10, r * 0.3, r * 0.6); 
+                ctx.beginPath(); ctx.moveTo(-r * 0.6, -r * 0.1); ctx.quadraticCurveTo(0, -r * 0.25, r * 0.6, -r * 0.1); ctx.stroke();
+            } else if (type === 'child') {
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.55, 15);
+                ctx.quadraticCurveTo(-r * 0.6, -r * 0.4, 0, -r * 0.45);
+                ctx.quadraticCurveTo(r * 0.6, -r * 0.4, r * 0.55, 15);
+                ctx.lineTo(r * 0.4, 0); ctx.lineTo(r * 0.2, 10); ctx.lineTo(0, -10); ctx.lineTo(-r * 0.2, 10); ctx.lineTo(-r * 0.4, 0);
+                ctx.closePath(); ctx.fill();
+            } else if (type === 'senior') {
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.6, 15); ctx.quadraticCurveTo(-r * 0.7, -r * 0.4, 0, -r * 0.45); ctx.quadraticCurveTo(r * 0.7, -r * 0.4, r * 0.6, 15);
+                ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(-20, -5); ctx.lineTo(20, -5); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(15, 0); ctx.stroke();
+                ctx.beginPath(); ctx.arc(-25, 45, 10, Math.PI * 1.5, Math.PI * 1.8); ctx.stroke();
+                ctx.beginPath(); ctx.arc(25, 45, 10, Math.PI * 1.2, Math.PI * 1.5); ctx.stroke();
+            }
+            
+            ctx.fillStyle = '#333';
+            ctx.beginPath(); ctx.arc(-18, 25, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(18, 25, 4.5, 0, Math.PI * 2); ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawPlatformIcon(x, y, platform) {
+            const iconR = 38; ctx.save(); ctx.translate(x, y);
+            if (platform === 'facebook') {
+                ctx.beginPath(); ctx.arc(0, 0, iconR, 0, Math.PI * 2); ctx.fillStyle = '#1877F2'; ctx.fill();
+                ctx.fillStyle = 'white'; ctx.font = 'bold 54px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('f', 4, 2);
+            } else if (platform === 'instagram') {
+                const grad = ctx.createRadialGradient(-10, 30, 0, 0, 0, iconR * 1.5);
+                grad.addColorStop(0, '#f9ce34'); grad.addColorStop(0.3, '#ee2a7b'); grad.addColorStop(1, '#6228d7');
+                ctx.beginPath(); ctx.arc(0, 0, iconR, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.strokeRect(-18, -18, 36, 36);
+                ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(11, -11, 2, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
+            } else if (platform === 'threads') {
+                ctx.beginPath(); ctx.arc(0, 0, iconR, 0, Math.PI * 2); ctx.fillStyle = '#000000'; ctx.fill();
+                ctx.fillStyle = 'white'; ctx.font = 'bold 45px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', 0, 0);
+            } else if (platform === 'tiktok') {
+                ctx.beginPath(); ctx.arc(0, 0, iconR, 0, Math.PI * 2); ctx.fillStyle = '#000000'; ctx.fill();
+                ctx.strokeStyle = '#25F4EE'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 10, 8, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(8, 10); ctx.lineTo(8, -15); ctx.quadraticCurveTo(8, -22, 18, -22); ctx.stroke();
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-1, 9, 8, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, iconR, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        }
+
+        function wrapText(text, maxLength) {
+            const lines = []; const rawLines = text.split('\n');
+            for (let rl of rawLines) { if (rl === "") { lines.push(""); continue; } for (let i = 0; i < rl.length; i += maxLength) { lines.push(rl.substring(i, i + maxLength)); } }
+            return lines;
+        }
+
+        function draw() {
+            const p = pages[currentPageIndex];
+            const width = canvas.width, height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.fillStyle = hexToRgba(p.bgColor, p.bgOpacity);
+            ctx.fillRect(0, 0, width, height);
+
+            // 主框
+            const boxX = (width - p.boxWidth) / 2 + 80, boxY = (height - p.boxHeight) / 2;
+            
+            ctx.save();
+            if (p.hasShadow) {
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = p.shadowBlur;
+                ctx.shadowOffsetY = 5;
+            }
+            ctx.beginPath(); ctx.roundRect(boxX, boxY, p.boxWidth, p.boxHeight, 15);
+            ctx.fillStyle = 'white'; ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.stroke();
+
+            // 頭像圈
+            const avatarX = 180, avatarY = height / 2 - 20, avatarR = 145;
+            ctx.save();
+            if (p.hasShadow) {
+                ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                ctx.shadowBlur = p.shadowBlur / 2;
+                ctx.shadowOffsetY = 3;
+            }
+            ctx.beginPath(); ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
+            ctx.fillStyle = 'white'; ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = 'black'; ctx.lineWidth = 6; ctx.stroke();
+
+            if (p.avatarMode === 'custom' && p.customAvatarImg) {
+                ctx.save(); ctx.beginPath(); ctx.arc(avatarX, avatarY, avatarR - 5, 0, Math.PI * 2); ctx.clip();
+                const iw = p.customAvatarImg.width, ih = p.customAvatarImg.height, aspect = iw / ih;
+                const circleDiameter = (avatarR - 5) * 2;
+                let dw, dh;
+                if (aspect > 1) { dh = circleDiameter; dw = circleDiameter * aspect; } else { dw = circleDiameter; dh = circleDiameter / aspect; }
+                const finalW = dw * p.avatarScale, finalH = dh * p.avatarScale;
+                ctx.drawImage(p.customAvatarImg, avatarX - finalW/2 + p.avatarOffsetX, avatarY - finalH/2 + p.avatarOffsetY, finalW, finalH);
+                ctx.restore();
+            } else {
+                drawAvatar(avatarX, avatarY, avatarR - 5, p.defaultAvatarType);
+            }
+
+            drawPlatformIcon(avatarX - 95, avatarY + 105, p.selectedPlatform);
+
+            // 文字
+            ctx.fillStyle = '#0a2351'; 
+            ctx.font = `bold ${p.textSize}px ${p.fontFamily}`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const charPerLine = Math.floor((p.boxWidth - 80) / (p.textSize * 1.05));
+            const lines = wrapText(p.text, Math.max(1, charPerLine));
+            const lineHeight = p.textSize * 1.4;
+            let startY = boxY + (p.boxHeight / 2) - ((lines.length * lineHeight) / 2) + (lineHeight / 2);
+            lines.forEach((line, index) => ctx.fillText(line, boxX + p.boxWidth / 2 + 10, startY + (index * lineHeight)));
+        }
+
+        // 頁面操作
+        function addPage() {
+            saveCurrentPage();
+            const current = pages[currentPageIndex];
+            const newPage = {...current, text: ""};
+            pages.push(newPage);
+            currentPageIndex = pages.length - 1;
+            loadCurrentPage();
+        }
+
+        function deleteCurrentPage() {
+            if (pages.length <= 1) { pages[0] = createDefaultPage(); } 
+            else { pages.splice(currentPageIndex, 1); if (currentPageIndex >= pages.length) currentPageIndex = pages.length - 1; }
+            loadCurrentPage();
+        }
+
+        function prevPage() { if (currentPageIndex > 0) { saveCurrentPage(); currentPageIndex--; loadCurrentPage(); } }
+        function nextPage() { if (currentPageIndex < pages.length - 1) { saveCurrentPage(); currentPageIndex++; loadCurrentPage(); } else { addPage(); } }
+
+        function setPlatform(plat, shouldDraw = true) {
+            pages[currentPageIndex].selectedPlatform = plat;
+            document.querySelectorAll('.plat-btn').forEach(btn => btn.classList.remove('active', 'border-blue-500', 'ring-2', 'ring-blue-500'));
+            document.getElementById('plat-' + plat).classList.add('active', 'border-blue-500', 'ring-2', 'ring-blue-500');
+            if (shouldDraw) draw();
+        }
+
+        function setAvatarType(type) {
+            const p = pages[currentPageIndex];
+            p.avatarMode = 'default';
+            p.defaultAvatarType = type;
+            loadCurrentPage();
+        }
+
+        function resetToDefault() {
+            const p = pages[currentPageIndex];
+            p.avatarMode = 'default'; p.customAvatarImg = null; p.avatarScale = 1; p.avatarOffsetX = 0; p.avatarOffsetY = 0;
+            loadCurrentPage();
+        }
+
+        function downloadImage() {
+            saveCurrentPage();
+            const currentSlug = ui.slug.value || "matsu";
+            const pageNum = currentPageIndex + 1;
+            const link = document.createElement('a');
+            link.download = `${currentSlug}_${pageNum}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        avatarUpload.onchange = function(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const p = pages[currentPageIndex];
+                    p.customAvatarImg = img; p.avatarMode = 'custom';
+                    loadCurrentPage();
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        };
+
+        [ui.text, ui.textSize, ui.fontFamily, ui.boxWidth, ui.boxHeight, ui.hasShadow, ui.shadowBlur, ui.bgColor, ui.bgOpacity, ui.avatarScale, ui.avatarOffsetX, ui.avatarOffsetY, ui.slug].forEach(el => {
+            el.addEventListener('input', () => {
+                saveCurrentPage();
+                updateUILabel();
+                draw();
+            });
+        });
+
+        window.onload = () => {
+            pages = [createDefaultPage()];
+            loadCurrentPage();
+        };
+    </script>
+</body>
+</html>
